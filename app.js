@@ -1,8 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-
+const encrypt = require('mongoose-encryption');
 
 const app = express();
 
@@ -28,6 +29,7 @@ const userSchema = new mongoose.Schema ({
     password: String
 });
 
+userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
 const User = new mongoose.model('User', userSchema);
 
 
@@ -49,17 +51,39 @@ app.post("/register", (req, res) => {
     const email = req.body.username;
     const password = req.body.password;
     saveUserToDB(email, password);
-    res.render('secrets');
+    res.render("secrets");
 });
 
 app.post("/login", (req, res) => {
+    const email = req.body.username;
+    const password = req.body.password;
 
+    findUserInDB(email, password)
+    .then(isValidUser => {
+        if (isValidUser) {
+            res.render("secrets");
+        } else {
+            res.render("home");
+        }
+    })
 });
 
 
-async function findUserInDB(email, password){
-
+async function findUserInDB(email, password) {
+    try {
+        const foundUser = await User.findOne({ email: email });
+        console.log(foundUser.password);
+        if (foundUser && foundUser.password === password) {
+            return true;
+        } else {
+            return false;
+        }
+    } catch (err) {
+        console.error(err);
+        throw err;
+    }
 }
+
 
 async function saveUserToDB(email, password) {
     try{
